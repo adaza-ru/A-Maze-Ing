@@ -1,0 +1,16 @@
+annotated-types==0.7.0
+flake8==7.3.0
+librt==0.9.0
+mazegenerator @ file:///home/adaza-ru/Documents/Github/a_maze_ing/MazeGeneratorPacman/mazegenerator-00001-py3-none-any.whl
+mccabe==0.7.0
+mypy==1.20.2
+mypy_extensions==1.1.0
+numpy==2.2.6
+pathspec==1.1.1
+pycodestyle==2.14.0
+pydantic==2.13.3
+pydantic_core==2.46.3
+pyflakes==3.4.0
+tomli==2.4.1
+typing-inspection==0.4.2
+typing_extensions==4.15.0

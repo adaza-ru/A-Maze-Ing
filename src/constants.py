@@ -8,8 +8,10 @@ class ANSICommand(str, Enum):
     HIDE_CURSOR = "\033[?25l"
     SHOW_CURSOR = "\033[?25h"
     HOME_CURSOR = "\033[H"
+    CLEAR_SCROLLBACK = "\033[3J"
     CLEAR_SCREEN = "\033[2J"
     CLEAR_DOWN = "\033[J"
+    CLEAR_LINE = "\033[K"
     RESET = "\033[0m"
 
     def __str__(self) -> str:

@@ -35,6 +35,8 @@ class AtomicRenderer:
         self.terminal_width: int = 0
         self.terminal_height: int = 0
         self._update_term_size()
+        self.maze_height: int = 0
+        self.maze_width: int = 0
 
     def _update_term_size(self) -> None:
         """x"""
@@ -50,10 +52,12 @@ class AtomicRenderer:
         if not raw_maze or raw_maze[0].startswith("Error"):
             return raw_maze
 
-        height = len(raw_maze)
-        width = len(raw_maze[0])
+        self.maze_height = len(raw_maze)
+        self.maze_width = len(raw_maze[0])
         grid = [
-            ['1' for _ in range(width * 2 + 1)] for _ in range(height * 2 + 1)
+            [
+                '1' for _ in range(self.maze_width * 2 + 1)
+            ] for _ in range(self.maze_height * 2 + 1)
         ]
 
         for y, row in enumerate(raw_maze):
@@ -124,20 +128,27 @@ class AtomicRenderer:
 
                 else:
                     line_str += chars['floor']
-            frame_lines.append(line_str)
+            frame_lines.append(f"{line_str}{ANSICommand.RESET}"
+                               f"{ANSICommand.CLEAR_LINE}")
 
-        ui_header = (f" FPS: {config.fps} | Modo: {mode_key.upper()} | "
-                     f"[/] Vim | [ESC] Salir ")
-        frame_lines.insert(0, ui_header)
-        frame_lines.insert(1, "-" * (config.width * 4 + 2))
+        ui_header = (f"\nFPS: {config.fps} | Modo: {mode_key.upper()}"
+                     f" | [/] Vim | [ESC] Salir{ANSICommand.CLEAR_DOWN}")
 
-        if len(frame_lines) > self.terminal_height:
-            frame_buffer = (f"{ANSICommand.HOME_CURSOR}Terminal too little "
-                            f"for display.{ANSICommand.CLEAR_DOWN}")
+        if (len(frame_lines) > self.terminal_height or
+                (((self.maze_width * 2) + 1) * 2) > self.terminal_width):
+            frame_buffer = (f"{ANSICommand.CLEAR_SCREEN}"
+                            f"{ANSICommand.CLEAR_SCROLLBACK}"
+                            f"{ANSICommand.HOME_CURSOR}"
+                            f"{get_color_fg(3)}"
+                            f"Terminal too little for display."
+                            f"{ANSICommand.RESET}{ANSICommand.CLEAR_DOWN}")
         else:
-            frame_buffer = (ANSICommand.HOME_CURSOR + "\n".join(frame_lines)
-                            + ANSICommand.CLEAR_DOWN)
-
+            frame_buffer = (ANSICommand.CLEAR_SCREEN +
+                            ANSICommand.CLEAR_SCROLLBACK +
+                            ANSICommand.HOME_CURSOR +
+                            "\n".join(frame_lines) +
+                            ui_header)
+        sys.stdout.flush()
         sys.stdout.write(frame_buffer)
         sys.stdout.flush()
 

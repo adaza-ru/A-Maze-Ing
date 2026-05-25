@@ -11,7 +11,6 @@ class MazeConfig(BaseModel):
     output_file: str = Field(default="maze.txt")
     perfect: bool = Field(default=True)
     seed: int = Field(default=42)
-    random: bool = Field(default=False)
     algorithm: str = Field(default="dfs")
 
     wall_color: str | int = Field(default="blue")

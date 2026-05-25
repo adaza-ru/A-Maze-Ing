@@ -93,12 +93,12 @@ def amazeing_engine() -> Callable[[], None]:
             while ctx.is_running:
                 ctx.current_state()
 
-        except KeyboardInterrupt:
+        except (KeyboardInterrupt, EOFError):
             ctx.current_state = state_exit
             ctx.current_state()
 
         finally:
             renderer.cleanup()
-            print("Saliendo limpiamente... ¡Hasta la próxima!")
+            print("Thank you for your time! <3")
 
     return run

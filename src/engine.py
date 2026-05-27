@@ -1,92 +1,133 @@
-from dataclasses import dataclass, field
 import os
 import sys
 import time
-from typing import Callable, Optional
+from dataclasses import dataclass, field
+from typing import Callable, Optional, Tuple
 
 from .config import MazeConfig, load_config
 from .constants import ANSICommand
-from .renderer import AtomicRenderer
+from .renderer import AtomicRenderer, MazeData, parse_output_file
 
 CONFIG_FILE = "config.txt"
-MAZE_FILE = "maze.txt"
-
-
-def load_maze() -> list[str]:
-    """x"""
-    lines = []
-    if not os.path.exists(MAZE_FILE):
-        return ["Error: maze.txt don't exist"]
-
-    with open(MAZE_FILE, "r") as f:
-        for line in f:
-            line = line.strip()
-            if not line:
-                break
-            lines.append(line)
-    return lines
 
 
 @dataclass
 class EngineContext:
-    """x"""
-    config: Optional[MazeConfig] = None
-    last_mtime: float = 0.0
-    maze_data: list[str] = field(default_factory=list)
-    is_running: bool = True
-    current_state: Optional[Callable[[], None]] = None
+    """
+    Mutable state shared across engine state functions.
 
-    player_x: int = 0
-    player_y: int = 0
-    vim_buffer: str = ""
+    Attributes:
+        config:        Current validated maze configuration.
+        last_mtime:    mtime of config.txt at last successful load
+                       (used for hot-reload detection).
+        maze_data:     Parsed maze output, None until first successful read.
+        is_running:    Main loop guard; set to False to exit cleanly.
+        current_state: Pointer to the active state function.
+        show_path:     Whether the solution path overlay is visible.
+        player_pos:    Player position in cell coords (x, y) for play mode.
+        vim_buffer:    Accumulated keystrokes for the vim command line.
+    """
+
+    config:        Optional[MazeConfig]          = None
+    last_mtime:    float                          = 0.0
+    maze_data:     Optional[MazeData]             = None
+    is_running:    bool                           = True
+    current_state: Optional[Callable[[], None]]  = None
+
+    show_path:  bool                          = False
+    player_pos: Optional[Tuple[int, int]]     = None
+    vim_buffer: str                           = ""
 
 
 def amazeing_engine() -> Callable[[], None]:
-    """x"""
+    """
+    Build and return the main engine loop as a callable.
+
+    The engine is a simple state machine::
+
+        state_boot → state_generating → state_idle
+                  ↘ state_error ↗
+
+    Hot-reload: state_idle watches config.txt mtime and reloads on change.
+
+    Returns:
+        A zero-argument callable that runs the loop until exit.
+    """
     ctx = EngineContext()
     renderer = AtomicRenderer()
 
-    def state_boot():
+    # ── States ────────────────────────────────────────────────────────────
+
+    def state_boot() -> None:
+        """Load and validate config; transition to generating or error."""
         ctx.config, ctx.last_mtime = load_config(CONFIG_FILE)
         if not ctx.config:
             ctx.current_state = state_error
             return
         ctx.current_state = state_generating
 
-    def state_generating():
-        ctx.maze_data = load_maze()
+    def state_generating() -> None:
+        """Parse the maze output file; transition to idle."""
+        output_file = ctx.config.output_file if ctx.config else "maze.txt"
+        ctx.maze_data = parse_output_file(output_file)
         ctx.current_state = state_idle
 
-    def state_idle():
-        current_mtime = os.path.getmtime(CONFIG_FILE)
-        if current_mtime > ctx.last_mtime:
-            new_config, _ = load_config(CONFIG_FILE)
-            if new_config:
-                ctx.config = new_config
-                ctx.last_mtime = current_mtime
+    def state_idle() -> None:
+        """Main display loop: hot-reload config, then render one frame."""
+        # Hot-reload config on file change
+        try:
+            mtime = os.path.getmtime(CONFIG_FILE)
+            if mtime > ctx.last_mtime:
+                new_config, _ = load_config(CONFIG_FILE)
+                if new_config:
+                    ctx.config     = new_config
+                    ctx.last_mtime = mtime
+        except OSError:
+            pass
 
-        renderer.render_idle_frame(ctx.maze_data, ctx.config)
-        time.sleep(1.0 / ctx.config.fps)
+        renderer.render_frame(
+            ctx.maze_data,
+            ctx.config,         # type: ignore[arg-type]
+            show_path=ctx.show_path,
+            player_pos=ctx.player_pos,
+        )
 
-    def state_error():
-        sys.stdout.write(f"{ANSICommand.HOME_CURSOR}Error reading config.txt."
-                         f" {ANSICommand.CLEAR_DOWN}\n")
+        if ctx.config:
+            time.sleep(1.0 / ctx.config.fps)
+
+    def state_error() -> None:
+        """Display config error; re-enter boot on file change."""
+        sys.stdout.write(
+            f"{ANSICommand.HOME_CURSOR}"
+            f"Error reading {CONFIG_FILE}."
+            f"{ANSICommand.CLEAR_DOWN}\n"
+        )
         sys.stdout.flush()
 
-        current_mtime = os.path.getmtime(CONFIG_FILE)
-        if current_mtime > ctx.last_mtime:
-            ctx.current_state = state_boot
-        else:
+        try:
+            mtime = os.path.getmtime(CONFIG_FILE)
+            if mtime > ctx.last_mtime:
+                ctx.current_state = state_boot
+            else:
+                time.sleep(0.5)
+        except OSError:
             time.sleep(0.5)
 
-    def state_exit():
+    def state_exit() -> None:
+        """Signal the main loop to stop."""
         ctx.is_running = False
+
+    # ── Bootstrap ─────────────────────────────────────────────────────────
 
     ctx.current_state = state_boot
 
-    def run():
-        sys.stdout.write(f"{ANSICommand.CLEAR_SCREEN}{ANSICommand.HOME_CURSOR}"
-                         f"{ANSICommand.HIDE_CURSOR}")
+    def run() -> None:
+        """Start the engine loop (blocks until exit or Ctrl-C)."""
+        sys.stdout.write(
+            f"{ANSICommand.CLEAR_SCREEN}"
+            f"{ANSICommand.HOME_CURSOR}"
+            f"{ANSICommand.HIDE_CURSOR}"
+        )
         sys.stdout.flush()
 
         try:

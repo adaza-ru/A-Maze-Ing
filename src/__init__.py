@@ -13,21 +13,15 @@ from .renderer import (
 )
 
 __all__ = [
-    # config
     "MazeConfig",
     "load_config",
-    # constants
     "ANSICommand",
     "CellType",
     "DisplayMode",
-    # engine
     "amazeing_engine",
-    # renderer – class
     "AtomicRenderer",
-    # renderer – data structures
     "CellStyle",
     "MazeData",
-    # renderer – pipeline functions (useful for animation / testing)
     "parse_output_file",
     "build_cell_matrix",
     "build_cell_style",

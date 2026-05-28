@@ -1,6 +1,5 @@
 import os
-from typing import Optional, Tuple
-
+from typing import Optional, Tuple, Any
 from pydantic import BaseModel, Field, ValidationError
 
 
@@ -12,7 +11,6 @@ class MazeConfig(BaseModel):
     Pydantic validates types and ranges automatically.
     """
 
-    # ── Generation ─────────────────────────────────────────────────────────
     width: int = Field(default=20, ge=5, le=100)
     height: int = Field(default=42, ge=5, le=100)
     entry: str = Field(default="0,0")
@@ -22,34 +20,29 @@ class MazeConfig(BaseModel):
     seed: int = Field(default=42)
     algorithm: str = Field(default="dfs")
 
-    # ── Display ────────────────────────────────────────────────────────────
     display_mode: str = Field(default="block")
     fps: int = Field(default=30, ge=1, le=60)
 
-    # ── Colors (name, 0-255 index, or "random") ───────────────────────────
-    wall_color:    str | int = Field(default="blue")
-    floor_color:   str | int = Field(default="black")
-    entry_color:   str | int = Field(default="magenta")
-    exit_color:    str | int = Field(default="red")
-    path_color:    str | int = Field(default="cyan")
-    player_color:  str | int = Field(default="green")
-    logo_42_color: str | int = Field(default="cyan")
+    wall_color: str | int = Field(default="magenta")
+    floor_color: str | int = Field(default="black")
+    entry_color: str | int = Field(default="red")
+    exit_color: str | int = Field(default="green")
+    path_color: str | int = Field(default="green")
+    player_color: str | int = Field(default="green")
+    logo_42_color: str | int = Field(default="yellow")
 
-    # ── Modes ──────────────────────────────────────────────────────────────
-    # rainbow_mode: every second all cell colors randomize ("epileptic" mode).
     rainbow_mode: bool = Field(default=False)
-    # play_mode: enables keyboard-driven player movement.
     play_mode: bool = Field(default=False)
 
 
-def parse_flat_config(filepath: str) -> dict:
+def parse_flat_config(filepath: str) -> dict[Any, Any]:
     """
     Parse a KEY=VALUE flat config file into a lowercase-keyed dict.
 
     Lines starting with '#' and empty lines are ignored.
     Keys with empty or 'NONE' values are skipped (field defaults apply).
     """
-    config_dict: dict = {}
+    config_dict: dict[Any, Any] = {}
     with open(filepath, 'r') as f:
         for line in f:
             line = line.strip()

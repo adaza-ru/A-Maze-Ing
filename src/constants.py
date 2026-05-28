@@ -34,7 +34,8 @@ class CellType(str, Enum):
     Semantic type of a cell in the expanded maze matrix.
 
     The expanded matrix has size (h*2+1) x (w*2+1):
-      - Odd  (row, col): cell centers  → FLOOR / ENTRY / EXIT / LOGO / PLAYER / PATH
+      - Odd  (row, col): cell centers  → FLOOR / ENTRY / EXIT /
+        LOGO / PLAYER / PATH
       - Even adjacent:   wall passages → WALL or FLOOR / PATH
       - Even corners:    always WALL
     """
@@ -48,56 +49,54 @@ class CellType(str, Enum):
     PATH = "path"
 
 
-# Characters to display per cell type, per display mode.
-# Each string must be exactly 2 terminal columns wide.
 DISPLAY_CHARACTERS: Dict[DisplayMode, Dict[CellType, str]] = {
     DisplayMode.BLOCK: {
-        CellType.WALL:   "  ",
-        CellType.FLOOR:  "  ",
-        CellType.ENTRY:  "EE",
-        CellType.EXIT:   "XX",
-        CellType.LOGO:   "42",
+        CellType.WALL: "  ",
+        CellType.FLOOR: "  ",
+        CellType.ENTRY: "EE",
+        CellType.EXIT: "XX",
+        CellType.LOGO: "42",
         CellType.PLAYER: "@@",
-        CellType.PATH:   "░░",
+        CellType.PATH: "░░",
     },
     DisplayMode.ASCII: {
-        CellType.WALL:   "##",
-        CellType.FLOOR:  "  ",
-        CellType.ENTRY:  "E ",
-        CellType.EXIT:   "X ",
-        CellType.LOGO:   "42",
+        CellType.WALL: "##",
+        CellType.FLOOR: "  ",
+        CellType.ENTRY: "E ",
+        CellType.EXIT: "X ",
+        CellType.LOGO: "42",
         CellType.PLAYER: "@ ",
-        CellType.PATH:   "..",
+        CellType.PATH: "..",
     },
 }
 
-# Named colors mapped to ANSI 256-color indices (0–15 standard palette).
+
 COLOR_PALETTE: Dict[str, int] = {
-    "black":         0,
-    "red":           1,
-    "green":         2,
-    "yellow":        3,
-    "blue":          4,
-    "magenta":       5,
-    "cyan":          6,
-    "white":         7,
-    "grey":          8,
-    "bright_red":    9,
-    "bright_green":  10,
+    "black": 0,
+    "red": 1,
+    "green": 2,
+    "yellow": 3,
+    "blue": 4,
+    "magenta": 5,
+    "cyan": 6,
+    "white": 7,
+    "grey": 8,
+    "bright_red": 9,
+    "bright_green": 10,
     "bright_yellow": 11,
-    "bright_blue":   12,
-    "bright_magenta":13,
-    "bright_cyan":   14,
-    "bright_white":  15,
+    "bright_blue": 12,
+    "bright_magenta": 13,
+    "bright_cyan": 14,
+    "bright_white": 15,
 }
 
-# Extended palette used by rainbow mode cycling (bonus).
+
 RAINBOW_COLORS: Dict[str, int] = {
-    "red":    196,
+    "red": 196,
     "orange": 208,
     "yellow": 226,
-    "green":  46,
-    "blue":   21,
+    "green": 46,
+    "blue": 21,
     "indigo": 27,
     "violet": 93,
 }

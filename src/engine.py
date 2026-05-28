@@ -1,7 +1,7 @@
 import os
 import sys
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Callable, Optional, Tuple
 
 from .config import MazeConfig, load_config
@@ -28,15 +28,15 @@ class EngineContext:
         vim_buffer:    Accumulated keystrokes for the vim command line.
     """
 
-    config:        Optional[MazeConfig]          = None
-    last_mtime:    float                          = 0.0
-    maze_data:     Optional[MazeData]             = None
-    is_running:    bool                           = True
-    current_state: Optional[Callable[[], None]]  = None
+    config: Optional[MazeConfig] = None
+    last_mtime: float = 0.0
+    maze_data: Optional[MazeData] = None
+    is_running: bool = True
+    current_state: Optional[Callable[[], None]] = None
 
-    show_path:  bool                          = False
-    player_pos: Optional[Tuple[int, int]]     = None
-    vim_buffer: str                           = ""
+    show_path: bool = False
+    player_pos: Optional[Tuple[int, int]] = None
+    vim_buffer: str = ""
 
 
 def amazeing_engine() -> Callable[[], None]:
@@ -56,8 +56,6 @@ def amazeing_engine() -> Callable[[], None]:
     ctx = EngineContext()
     renderer = AtomicRenderer()
 
-    # ── States ────────────────────────────────────────────────────────────
-
     def state_boot() -> None:
         """Load and validate config; transition to generating or error."""
         ctx.config, ctx.last_mtime = load_config(CONFIG_FILE)
@@ -74,26 +72,26 @@ def amazeing_engine() -> Callable[[], None]:
 
     def state_idle() -> None:
         """Main display loop: hot-reload config, then render one frame."""
-        # Hot-reload config on file change
         try:
             mtime = os.path.getmtime(CONFIG_FILE)
             if mtime > ctx.last_mtime:
                 new_config, _ = load_config(CONFIG_FILE)
                 if new_config:
-                    ctx.config     = new_config
+                    ctx.config = new_config
                     ctx.last_mtime = mtime
         except OSError:
             pass
 
-        renderer.render_frame(
-            ctx.maze_data,
-            ctx.config,         # type: ignore[arg-type]
-            show_path=ctx.show_path,
-            player_pos=ctx.player_pos,
-        )
-
         if ctx.config:
+            renderer.render_frame(
+                ctx.maze_data,
+                ctx.config,
+                show_path=ctx.show_path,
+                player_pos=ctx.player_pos,
+            )
             time.sleep(1.0 / ctx.config.fps)
+        else:
+            ctx.current_state = state_error
 
     def state_error() -> None:
         """Display config error; re-enter boot on file change."""
@@ -117,8 +115,6 @@ def amazeing_engine() -> Callable[[], None]:
         """Signal the main loop to stop."""
         ctx.is_running = False
 
-    # ── Bootstrap ─────────────────────────────────────────────────────────
-
     ctx.current_state = state_boot
 
     def run() -> None:
@@ -132,7 +128,10 @@ def amazeing_engine() -> Callable[[], None]:
 
         try:
             while ctx.is_running:
-                ctx.current_state()
+                if ctx.current_state is not None:
+                    ctx.current_state()
+                else:
+                    break
 
         except (KeyboardInterrupt, EOFError):
             ctx.current_state = state_exit
@@ -140,6 +139,6 @@ def amazeing_engine() -> Callable[[], None]:
 
         finally:
             renderer.cleanup()
-            print("Thank you for your time! <3")
+            print("\033[38;5;5mThank you for your time! 💙")
 
     return run

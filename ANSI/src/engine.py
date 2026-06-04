@@ -1,16 +1,3 @@
-"""
-engine.py – State-machine game loop.
-
-State graph::
-
-    state_boot → state_generating → state_idle
-              ↘ state_error ↗
-
-blessed context managers (fullscreen, hidden_cursor) are entered in run()
-and wrap the entire loop lifetime, so terminal state is always restored
-cleanly – even on Ctrl-C or unexpected exceptions.
-"""
-
 import os
 import sys
 import time
@@ -18,6 +5,7 @@ from dataclasses import dataclass
 from typing import Callable, Optional, Tuple
 
 from .config import MazeConfig, load_config
+from .constants import ANSICommand
 from .renderer import AtomicRenderer, MazeData, parse_output_file
 
 CONFIG_FILE = "config.txt"
@@ -40,31 +28,33 @@ class EngineContext:
         vim_buffer:    Accumulated keystrokes for the vim command line.
     """
 
-    config:        Optional[MazeConfig]         = None
-    last_mtime:    float                         = 0.0
-    maze_data:     Optional[MazeData]            = None
-    is_running:    bool                          = True
+    config: Optional[MazeConfig] = None
+    last_mtime: float = 0.0
+    maze_data: Optional[MazeData] = None
+    is_running: bool = True
     current_state: Optional[Callable[[], None]] = None
 
-    show_path:  bool                         = False
-    player_pos: Optional[Tuple[int, int]]    = None
-    vim_buffer: str                          = ""
+    show_path: bool = False
+    player_pos: Optional[Tuple[int, int]] = None
+    vim_buffer: str = ""
 
 
 def amazeing_engine() -> Callable[[], None]:
     """
     Build and return the main engine loop as a callable.
 
+    The engine is a simple state machine::
+
+        state_boot → state_generating → state_idle
+                  ↘ state_error ↗
+
     Hot-reload: state_idle watches config.txt mtime and reloads on change.
 
     Returns:
         A zero-argument callable that runs the loop until exit.
     """
-    ctx      = EngineContext()
+    ctx = EngineContext()
     renderer = AtomicRenderer()
-    term     = renderer.term
-
-    # ── States ────────────────────────────────────────────────────────────
 
     def state_boot() -> None:
         """Load and validate config; transition to generating or error."""
@@ -87,7 +77,7 @@ def amazeing_engine() -> Callable[[], None]:
             if mtime > ctx.last_mtime:
                 new_config, _ = load_config(CONFIG_FILE)
                 if new_config:
-                    ctx.config     = new_config
+                    ctx.config = new_config
                     ctx.last_mtime = mtime
         except OSError:
             pass
@@ -106,10 +96,9 @@ def amazeing_engine() -> Callable[[], None]:
     def state_error() -> None:
         """Display config error; re-enter boot on file change."""
         sys.stdout.write(
-            term.home
-            + f"Error reading {CONFIG_FILE}."
-            + term.clear_eol
-            + "\n"
+            f"{ANSICommand.HOME_CURSOR}"
+            f"Error reading {CONFIG_FILE}."
+            f"{ANSICommand.CLEAR_DOWN}\n"
         )
         sys.stdout.flush()
 
@@ -128,31 +117,28 @@ def amazeing_engine() -> Callable[[], None]:
 
     ctx.current_state = state_boot
 
-    # ── Main loop ─────────────────────────────────────────────────────────
-
     def run() -> None:
-        """
-        Start the engine loop (blocks until exit or Ctrl-C).
+        """Start the engine loop (blocks until exit or Ctrl-C)."""
+        sys.stdout.write(
+            f"{ANSICommand.CLEAR_SCREEN}"
+            f"{ANSICommand.HOME_CURSOR}"
+            f"{ANSICommand.HIDE_CURSOR}"
+        )
+        sys.stdout.flush()
 
-        term.fullscreen() switches to the alternate screen buffer and
-        restores the original screen on exit – no manual cleanup needed.
-        term.hidden_cursor() hides the cursor for the duration of the loop.
-        """
-        with term.fullscreen(), term.hidden_cursor():
-            try:
-                while ctx.is_running:
-                    if ctx.current_state is not None:
-                        ctx.current_state()
-                    else:
-                        break
+        try:
+            while ctx.is_running:
+                if ctx.current_state is not None:
+                    ctx.current_state()
+                else:
+                    break
 
-            except (KeyboardInterrupt, EOFError):
-                ctx.current_state = state_exit
-                ctx.current_state()
+        except (KeyboardInterrupt, EOFError):
+            ctx.current_state = state_exit
+            ctx.current_state()
 
-            finally:
-                renderer.cleanup()
-
-        print(term.color(5) + "Thank you for your time! \U0001f499" + term.normal)
+        finally:
+            renderer.cleanup()
+            print("\033[38;5;5mThank you for your time! 💙")
 
     return run

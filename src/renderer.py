@@ -17,7 +17,6 @@ Pipeline (one frame):
     str                   ← complete frame ready for stdout.write()
 
 Scalability hooks already in place:
-  - play_mode   : pass player_pos to build_cell_matrix()
   - show_path   : pass show_path=True to build_cell_matrix()
   - animation   : pass each generation step's hex_rows directly to
                   build_cell_matrix() (bypassing parse_output_file)
@@ -84,8 +83,6 @@ class CellStyle:
 
 # ── Direction table ─────────────────────────────────────────────────────────
 
-# Delta in the *expanded* grid per direction letter.
-# One direction step = 1 passage cell + 1 center cell = 2 expanded rows/cols.
 _DIR_DELTA: Dict[str, Tuple[int, int]] = {
     'N': (-1,  0),
     'E': ( 0, +1),
@@ -176,7 +173,6 @@ def _mark_path(
 
 def build_cell_matrix(
     maze_data:  MazeData,
-    player_pos: Optional[Tuple[int, int]] = None,
     show_path:  bool = False,
 ) -> List[List[CellType]]:
     """
@@ -188,12 +184,11 @@ def build_cell_matrix(
       - Even corners:  structural walls       → always WALL
 
     LOGO detection: a hex cell with value 0xF (all 4 walls set) is part of
-    the "42" pattern; its 3×3 expanded neighbourhood is marked LOGO so the
+    the "42" pattern; its 3x3 expanded neighbourhood is marked LOGO so the
     symbol renders as a solid block.
 
     Args:
         maze_data:  Parsed maze output.
-        player_pos: Optional (x, y) in cell coords to overlay PLAYER.
         show_path:  If True, trace the solution path onto the matrix.
 
     Returns:
@@ -216,7 +211,6 @@ def build_cell_matrix(
             cy, cx = y * 2 + 1, x * 2 + 1
 
             if val == 0xF:
-                # Mark the full 3×3 expanded block as LOGO
                 for dy in (-1, 0, 1):
                     for dx in (-1, 0, 1):
                         matrix[cy + dy][cx + dx] = CellType.LOGO
@@ -224,30 +218,23 @@ def build_cell_matrix(
                 matrix[cy][cx] = CellType.FLOOR
 
                 if not (val & 0x1):
-                    matrix[cy - 1][cx] = CellType.FLOOR   # North open
+                    matrix[cy - 1][cx] = CellType.FLOOR
                 if not (val & 0x2):
-                    matrix[cy][cx + 1] = CellType.FLOOR   # East open
+                    matrix[cy][cx + 1] = CellType.FLOOR
                 if not (val & 0x4):
-                    matrix[cy + 1][cx] = CellType.FLOOR   # South open
+                    matrix[cy + 1][cx] = CellType.FLOOR
                 if not (val & 0x8):
-                    matrix[cy][cx - 1] = CellType.FLOOR   # West open
+                    matrix[cy][cx - 1] = CellType.FLOOR
 
-    # Entry and exit override whatever the hex data placed there
     ex, ey = maze_data.entry
     xx, xy = maze_data.exit_
     entry_cy, entry_cx = ey * 2 + 1, ex * 2 + 1
-    exit_cy,  exit_cx  = xy * 2 + 1, xx * 2 + 1
+    exit_cy, exit_cx = xy * 2 + 1, xx * 2 + 1
     matrix[entry_cy][entry_cx] = CellType.ENTRY
-    matrix[exit_cy][exit_cx]   = CellType.EXIT
+    matrix[exit_cy][exit_cx] = CellType.EXIT
 
     if show_path and maze_data.path:
         _mark_path(matrix, maze_data.path, entry_cy, entry_cx)
-
-    if player_pos is not None:
-        px, py = player_pos
-        pcy, pcx = py * 2 + 1, px * 2 + 1
-        if matrix[pcy][pcx] not in (CellType.ENTRY, CellType.EXIT):
-            matrix[pcy][pcx] = CellType.PLAYER
 
     return matrix
 
@@ -264,13 +251,12 @@ def build_cell_style(config: MazeConfig, mode: DisplayMode) -> CellStyle:
         return resolve_color_code(getattr(config, attr, fallback))
 
     colors: Dict[CellType, int] = {
-        CellType.WALL:   _color('wall_color',    'blue'),
+        CellType.WALL:   _color('wall_color',    'magenta'),
         CellType.FLOOR:  _color('floor_color',   'black'),
-        CellType.ENTRY:  _color('entry_color',   'magenta'),
-        CellType.EXIT:   _color('exit_color',    'red'),
-        CellType.LOGO:   _color('logo_42_color', 'cyan'),
-        CellType.PLAYER: _color('player_color',  'green'),
-        CellType.PATH:   _color('path_color',    'cyan'),
+        CellType.ENTRY:  _color('entry_color',   'red'),
+        CellType.EXIT:   _color('exit_color',    'green'),
+        CellType.LOGO:   _color('logo_42_color', 'yellow'),
+        CellType.PATH:   _color('path_color',    'bright_white'),
     }
 
     return CellStyle(
@@ -348,7 +334,7 @@ def build_frame(
     Returns:
         Complete frame string ready for stdout.write().
     """
-    display_w = maze_cols * 2   # every cell is 2 terminal columns wide
+    display_w = maze_cols * 2
 
     if maze_rows > term.height or display_w > term.width:
         return (
@@ -361,18 +347,16 @@ def build_frame(
         )
 
     default_bar = (
-        f"\nFPS: {config.fps}"
-        f" | Mode: {str(mode).upper()}"
-        f" | [/] Vim"
+        f"\n| Mode: {str(mode).upper()}"
+        f" | [:] Vim"
         f" | [ESC] Exit"
     )
 
     return term.clear + "\n".join(rendered_lines) + (ui_bar or default_bar)
 
 
-# ── Renderer class ────────────────────────────────────────────────────────────
+# ── Renderer class ──────────────────────────────────────────────────────────
 
-# How often rainbow mode randomizes all cell colors (seconds).
 _RAINBOW_INTERVAL: float = 1.0
 
 
@@ -398,12 +382,10 @@ class AtomicRenderer:
     def __init__(self) -> None:
         self.term: Terminal = Terminal()
 
-        # CellStyle cache – rebuilt only when config changes
         self._last_config:  Optional[MazeConfig] = None
         self._cell_style:   Optional[CellStyle]  = None
         self._display_mode: Optional[DisplayMode] = None
 
-        # Rainbow mode state
         self._rainbow_ts:       float = 0.0
         self._rainbow_override: Optional[Dict[CellType, int]] = None
 
@@ -413,6 +395,8 @@ class AtomicRenderer:
         """Map config.display_mode string to a DisplayMode enum value."""
         if config.display_mode.lower() == "ascii":
             return DisplayMode.ASCII
+        if config.display_mode.lower() == "cursed":
+            return DisplayMode.CURSED
         return DisplayMode.BLOCK
 
     def _get_style(self, config: MazeConfig, mode: DisplayMode) -> CellStyle:
@@ -454,7 +438,6 @@ class AtomicRenderer:
         maze_data:  Optional[MazeData],
         config:     MazeConfig,
         show_path:  bool = False,
-        player_pos: Optional[Tuple[int, int]] = None,
         ui_bar:     str = "",
     ) -> None:
         """
@@ -464,7 +447,6 @@ class AtomicRenderer:
             maze_data:  Parsed maze, or None to show a waiting screen.
             config:     Current maze configuration.
             show_path:  Whether to overlay the solution path.
-            player_pos: Optional player position in cell coords (x, y).
             ui_bar:     Custom bottom status bar (e.g. vim command input).
                         Defaults to the standard bar when empty.
         """
@@ -482,7 +464,7 @@ class AtomicRenderer:
         style    = self._get_style(config, mode)
         rainbow  = self._get_rainbow_override(config)
 
-        matrix   = build_cell_matrix(maze_data, player_pos, show_path)
+        matrix   = build_cell_matrix(maze_data, show_path)
         rendered = render_matrix(matrix, style, self.term, rainbow)
 
         maze_rows = len(matrix)

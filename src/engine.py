@@ -1,5 +1,5 @@
 """
-engine.py – State-machine game loop.
+engine.py - State-machine game loop.
 
 State graph::
 
@@ -8,7 +8,7 @@ State graph::
 
 blessed context managers (fullscreen, hidden_cursor) are entered in run()
 and wrap the entire loop lifetime, so terminal state is always restored
-cleanly – even on Ctrl-C or unexpected exceptions.
+cleanly - even on Ctrl-C or unexpected exceptions.
 """
 
 import os
@@ -36,7 +36,6 @@ class EngineContext:
         is_running:    Main loop guard; set to False to exit cleanly.
         current_state: Pointer to the active state function.
         show_path:     Whether the solution path overlay is visible.
-        player_pos:    Player position in cell coords (x, y) for play mode.
         vim_buffer:    Accumulated keystrokes for the vim command line.
     """
 
@@ -47,7 +46,6 @@ class EngineContext:
     current_state: Optional[Callable[[], None]] = None
 
     show_path:  bool                         = False
-    player_pos: Optional[Tuple[int, int]]    = None
     vim_buffer: str                          = ""
 
 
@@ -87,7 +85,7 @@ def amazeing_engine() -> Callable[[], None]:
             if mtime > ctx.last_mtime:
                 new_config, _ = load_config(CONFIG_FILE)
                 if new_config:
-                    ctx.config     = new_config
+                    ctx.config = new_config
                     ctx.last_mtime = mtime
         except OSError:
             pass
@@ -97,9 +95,8 @@ def amazeing_engine() -> Callable[[], None]:
                 ctx.maze_data,
                 ctx.config,
                 show_path=ctx.show_path,
-                player_pos=ctx.player_pos,
             )
-            time.sleep(1.0 / ctx.config.fps)
+            time.sleep(1.0 / 30)
         else:
             ctx.current_state = state_error
 
@@ -135,7 +132,7 @@ def amazeing_engine() -> Callable[[], None]:
         Start the engine loop (blocks until exit or Ctrl-C).
 
         term.fullscreen() switches to the alternate screen buffer and
-        restores the original screen on exit – no manual cleanup needed.
+        restores the original screen on exit - no manual cleanup needed.
         term.hidden_cursor() hides the cursor for the duration of the loop.
         """
         with term.fullscreen(), term.hidden_cursor():
@@ -152,7 +149,7 @@ def amazeing_engine() -> Callable[[], None]:
 
             finally:
                 renderer.cleanup()
-
+        print("\033[2J\033[3J\033[H")
         print(term.color(5) + "Thank you for your time! \U0001f499" + term.normal)
 
     return run

@@ -16,6 +16,7 @@ class DisplayMode(str, Enum):
 
     BLOCK = "block"
     ASCII = "ascii"
+    CURSED = "cursed"
 
     def __str__(self) -> str:
         return self.value
@@ -37,7 +38,6 @@ class CellType(str, Enum):
     ENTRY = "entry"
     EXIT = "exit"
     LOGO = "logo"
-    PLAYER = "player"
     PATH = "path"
 
 
@@ -45,20 +45,26 @@ DISPLAY_CHARACTERS: Dict[DisplayMode, Dict[CellType, str]] = {
     DisplayMode.BLOCK: {
         CellType.WALL:   "  ",
         CellType.FLOOR:  "  ",
-        CellType.ENTRY:  "EE",
-        CellType.EXIT:   "XX",
-        CellType.LOGO:   "42",
-        CellType.PLAYER: "@@",
+        CellType.ENTRY:  "◫◫",
+        CellType.EXIT:   "★★",
+        CellType.LOGO:   "⓸⓶",
         CellType.PATH:   "░░",
     },
     DisplayMode.ASCII: {
         CellType.WALL:   "##",
-        CellType.FLOOR:  "  ",
-        CellType.ENTRY:  "E ",
-        CellType.EXIT:   "X ",
+        CellType.FLOOR:  "░░",
+        CellType.ENTRY:  "EE",
+        CellType.EXIT:   "XX",
         CellType.LOGO:   "42",
-        CellType.PLAYER: "@ ",
         CellType.PATH:   "..",
+    },
+    DisplayMode.CURSED: {
+        CellType.WALL:   "😂",
+        CellType.FLOOR:  "♥♥",
+        CellType.ENTRY:  "🍌",
+        CellType.EXIT:   "🍆",
+        CellType.LOGO:   "😻",
+        CellType.PATH:   "🌢",
     },
 }
 

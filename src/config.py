@@ -17,22 +17,20 @@ class MazeConfig(BaseModel):
     exit: str = Field(default="19,14")
     output_file: str = Field(default="maze.txt")
     perfect: bool = Field(default=True)
+
     seed: int = Field(default=42)
     algorithm: str = Field(default="dfs")
-
-    display_mode: str = Field(default="block")
-    fps: int = Field(default=30, ge=1, le=60)
 
     wall_color: str | int = Field(default="magenta")
     floor_color: str | int = Field(default="black")
     entry_color: str | int = Field(default="red")
     exit_color: str | int = Field(default="green")
-    path_color: str | int = Field(default="green")
-    player_color: str | int = Field(default="green")
+    path_color: str | int = Field(default="bright_white")
     logo_42_color: str | int = Field(default="yellow")
+    display_mode: str = Field(default="block")
 
     rainbow_mode: bool = Field(default=False)
-    play_mode: bool = Field(default=False)
+    show_path: bool = Field(default=False)
 
 
 def parse_flat_config(filepath: str) -> dict[Any, Any]:

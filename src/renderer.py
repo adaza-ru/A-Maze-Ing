@@ -1,23 +1,23 @@
 """
-renderer.py – Maze rendering pipeline (blessed backend).
+renderer.py - Maze rendering pipeline (blessed backend).
 
 Pipeline (one frame):
     output file
-        │  parse_output_file()
-        ▼
-    MazeData              ← raw hex rows + entry/exit coords + path string
-        │  build_cell_matrix()
-        ▼
-    list[list[CellType]]  ← expanded (h*2+1) x (w*2+1) semantic matrix
-        │  render_matrix()          ← uses CellStyle + blessed Terminal
-        ▼
-    list[str]             ← one colored string per row
-        │  build_frame()
-        ▼
-    str                   ← complete frame ready for stdout.write()
+        |  parse_output_file()
+        v
+    MazeData              <- raw hex rows + entry/exit coords + path string
+        |  build_cell_matrix()
+        v
+    list[list[CellType]]  <- expanded (h*2+1) x (w*2+1) semantic matrix
+        |  render_matrix()     <- uses CellStyle + blessed Terminal
+        v
+    list[str]             <- one colored string per row
+        |  build_frame()
+        v
+    str                   <- complete frame ready for stdout.write()
 
 Scalability hooks already in place:
-  - show_path   : pass show_path=True to build_cell_matrix()
+  - show_path   : read from config.show_path inside render_frame()
   - animation   : pass each generation step's hex_rows directly to
                   build_cell_matrix() (bypassing parse_output_file)
   - rainbow_mode: AtomicRenderer._get_rainbow_override() refreshes
@@ -44,7 +44,7 @@ from .constants import (
 )
 
 
-# ── Data structures ─────────────────────────────────────────────────────────
+# -- Data structures ----------------------------------------------------------
 
 @dataclass
 class MazeData:
@@ -59,9 +59,9 @@ class MazeData:
     """
 
     hex_rows: List[str]
-    entry:    Tuple[int, int]
-    exit_:    Tuple[int, int]
-    path:     str
+    entry: Tuple[int, int]
+    exit_: Tuple[int, int]
+    path: str
 
 
 @dataclass
@@ -72,26 +72,26 @@ class CellStyle:
     Attributes:
         chars:  Two-column-wide display string for each CellType.
         colors: ANSI 256-color index for each CellType.
-        use_bg: True  → color applied as background (BLOCK mode).
-                False → color applied as foreground (ASCII mode).
+        use_bg: True  -> color applied as background (BLOCK mode).
+                False -> color applied as foreground (ASCII mode).
     """
 
-    chars:  Dict[CellType, str]
+    chars: Dict[CellType, str]
     colors: Dict[CellType, int]
     use_bg: bool
 
 
-# ── Direction table ─────────────────────────────────────────────────────────
+# -- Direction table ----------------------------------------------------------
 
 _DIR_DELTA: Dict[str, Tuple[int, int]] = {
-    'N': (-1,  0),
-    'E': ( 0, +1),
-    'S': (+1,  0),
-    'W': ( 0, -1),
+    'N': (-1, 0),
+    'E': (0, +1),
+    'S': (+1, 0),
+    'W': (0, -1),
 }
 
 
-# ── Parsing ─────────────────────────────────────────────────────────────────
+# -- Parsing ------------------------------------------------------------------
 
 def parse_output_file(filepath: str) -> Optional[MazeData]:
     """
@@ -101,11 +101,11 @@ def parse_output_file(filepath: str) -> Optional[MazeData]:
 
         <hex row 0>
         <hex row 1>
-        …
-                        ← blank line separator
+        ...
+                        <- blank line separator
         entry_x,entry_y
         exit_x,exit_y
-        NSEWNSEW…       ← shortest path
+        NSEWNSEW...     <- shortest path
 
     Returns:
         MazeData on success, None on any read or format error.
@@ -121,7 +121,7 @@ def parse_output_file(filepath: str) -> Optional[MazeData]:
         return None
 
     hex_rows = [ln for ln in parts[0].splitlines() if ln.strip()]
-    meta     = [ln.strip() for ln in parts[1].splitlines() if ln.strip()]
+    meta = [ln.strip() for ln in parts[1].splitlines() if ln.strip()]
 
     if len(meta) < 3:
         return None
@@ -140,11 +140,11 @@ def parse_output_file(filepath: str) -> Optional[MazeData]:
     )
 
 
-# ── Matrix building ─────────────────────────────────────────────────────────
+# -- Matrix building ----------------------------------------------------------
 
 def _mark_path(
-    matrix:   List[List[CellType]],
-    path:     str,
+    matrix: List[List[CellType]],
+    path: str,
     start_cy: int,
     start_cx: int,
 ) -> None:
@@ -152,7 +152,7 @@ def _mark_path(
     Trace *path* onto *matrix* starting at (start_cy, start_cx).
 
     Marks both the passage cell (between two centers) and the destination
-    center as CellType.PATH.  ENTRY and EXIT cells are never overwritten.
+    center as CellType.PATH. ENTRY and EXIT cells are never overwritten.
     """
     cy, cx = start_cy, start_cx
 
@@ -172,24 +172,24 @@ def _mark_path(
 
 
 def build_cell_matrix(
-    maze_data:  MazeData,
-    show_path:  bool = False,
+    maze_data: MazeData,
+    show_path: bool = False,
 ) -> List[List[CellType]]:
     """
-    Expand the hex grid into a 2D semantic matrix of size (h*2+1) × (w*2+1).
+    Expand the hex grid into a 2D semantic matrix of size (h*2+1) x (w*2+1).
 
     Cell layout in expanded coordinates:
-      - Odd  (cy, cx): original cell center   → FLOOR / ENTRY / EXIT / LOGO
-      - Even adjacent: passage between cells  → WALL or FLOOR / PATH
-      - Even corners:  structural walls       → always WALL
+      - Odd  (cy, cx): original cell center  -> FLOOR / ENTRY / EXIT / LOGO
+      - Even adjacent: passage between cells -> WALL or FLOOR / PATH
+      - Even corners:  structural walls      -> always WALL
 
     LOGO detection: a hex cell with value 0xF (all 4 walls set) is part of
     the "42" pattern; its 3x3 expanded neighbourhood is marked LOGO so the
     symbol renders as a solid block.
 
     Args:
-        maze_data:  Parsed maze output.
-        show_path:  If True, trace the solution path onto the matrix.
+        maze_data: Parsed maze output.
+        show_path: If True, trace the solution path onto the matrix.
 
     Returns:
         2D list of CellType values.
@@ -239,7 +239,7 @@ def build_cell_matrix(
     return matrix
 
 
-# ── Style building ──────────────────────────────────────────────────────────
+# -- Style building -----------------------------------------------------------
 
 def build_cell_style(config: MazeConfig, mode: DisplayMode) -> CellStyle:
     """
@@ -251,12 +251,12 @@ def build_cell_style(config: MazeConfig, mode: DisplayMode) -> CellStyle:
         return resolve_color_code(getattr(config, attr, fallback))
 
     colors: Dict[CellType, int] = {
-        CellType.WALL:   _color('wall_color',    'magenta'),
-        CellType.FLOOR:  _color('floor_color',   'black'),
-        CellType.ENTRY:  _color('entry_color',   'red'),
-        CellType.EXIT:   _color('exit_color',    'green'),
-        CellType.LOGO:   _color('logo_42_color', 'yellow'),
-        CellType.PATH:   _color('path_color',    'bright_white'),
+        CellType.WALL: _color('wall_color', 'magenta'),
+        CellType.FLOOR: _color('floor_color', 'black'),
+        CellType.ENTRY: _color('entry_color', 'red'),
+        CellType.EXIT: _color('exit_color', 'green'),
+        CellType.LOGO: _color('logo_42_color', 'yellow'),
+        CellType.PATH: _color('path_color', 'bright_white'),
     }
 
     return CellStyle(
@@ -266,12 +266,12 @@ def build_cell_style(config: MazeConfig, mode: DisplayMode) -> CellStyle:
     )
 
 
-# ── Rendering ───────────────────────────────────────────────────────────────
+# -- Rendering ----------------------------------------------------------------
 
 def render_matrix(
-    matrix:         List[List[CellType]],
-    style:          CellStyle,
-    term:           Terminal,
+    matrix: List[List[CellType]],
+    style: CellStyle,
+    term: Terminal,
     color_override: Optional[Dict[CellType, int]] = None,
 ) -> List[str]:
     """
@@ -306,12 +306,12 @@ def render_matrix(
 
 def build_frame(
     rendered_lines: List[str],
-    config:         MazeConfig,
-    mode:           DisplayMode,
-    term:           Terminal,
-    maze_cols:      int,
-    maze_rows:      int,
-    ui_bar:         str = "",
+    config: MazeConfig,
+    mode: DisplayMode,
+    term: Terminal,
+    maze_cols: int,
+    maze_rows: int,
+    ui_bar: str = "",
 ) -> str:
     """
     Assemble the final terminal frame string from rendered rows.
@@ -340,9 +340,8 @@ def build_frame(
         return (
             term.clear
             + term.color(3)
-            + f"Terminal too small "
-            + f"(need {display_w}\u00d7{maze_rows},"
-            + f" have {term.width}\u00d7{term.height})"
+            + f"Terminal too small (need {display_w}x{maze_rows},"
+            + f" have {term.width}x{term.height})"
             + term.normal
         )
 
@@ -355,7 +354,7 @@ def build_frame(
     return term.clear + "\n".join(rendered_lines) + (ui_bar or default_bar)
 
 
-# ── Renderer class ──────────────────────────────────────────────────────────
+# -- Renderer class -----------------------------------------------------------
 
 _RAINBOW_INTERVAL: float = 1.0
 
@@ -368,28 +367,23 @@ class AtomicRenderer:
     Typical usage (from the engine loop)::
 
         renderer = AtomicRenderer()
-        renderer.render_frame(maze_data, config, show_path=True)
+        renderer.render_frame(maze_data, config)
 
     The pipeline functions (parse_output_file, build_cell_matrix,
     build_cell_style, render_matrix, build_frame) are exposed at module
     level so they can be used independently for animation, testing, etc.
 
     Attributes:
-        term: The blessed Terminal instance.  The engine accesses it
+        term: The blessed Terminal instance. The engine accesses it
               directly to use context managers (fullscreen, hidden_cursor).
     """
 
     def __init__(self) -> None:
         self.term: Terminal = Terminal()
-
-        self._last_config:  Optional[MazeConfig] = None
-        self._cell_style:   Optional[CellStyle]  = None
-        self._display_mode: Optional[DisplayMode] = None
-
-        self._rainbow_ts:       float = 0.0
+        self._last_config: Optional[MazeConfig] = None
+        self._cell_style: Optional[CellStyle] = None
+        self._rainbow_ts: float = 0.0
         self._rainbow_override: Optional[Dict[CellType, int]] = None
-
-    # ── Helpers ───────────────────────────────────────────────────────────
 
     def _resolve_mode(self, config: MazeConfig) -> DisplayMode:
         """Map config.display_mode string to a DisplayMode enum value."""
@@ -402,9 +396,8 @@ class AtomicRenderer:
     def _get_style(self, config: MazeConfig, mode: DisplayMode) -> CellStyle:
         """Return cached CellStyle, rebuilding only when config changes."""
         if config != self._last_config or self._cell_style is None:
-            self._cell_style   = build_cell_style(config, mode)
-            self._display_mode = mode
-            self._last_config  = config
+            self._cell_style = build_cell_style(config, mode)
+            self._last_config = config
         return self._cell_style
 
     def _get_rainbow_override(
@@ -415,7 +408,7 @@ class AtomicRenderer:
         Return a full color-override dict for rainbow mode.
 
         All cell types receive a new random 256-color index together,
-        refreshing once every _RAINBOW_INTERVAL seconds ("epileptic" strobe).
+        refreshing once every _RAINBOW_INTERVAL seconds.
         Returns None when rainbow mode is inactive.
         """
         if not config.rainbow_mode:
@@ -431,40 +424,38 @@ class AtomicRenderer:
 
         return self._rainbow_override
 
-    # ── Public API ────────────────────────────────────────────────────────
-
     def render_frame(
         self,
-        maze_data:  Optional[MazeData],
-        config:     MazeConfig,
-        show_path:  bool = False,
-        ui_bar:     str = "",
+        maze_data: Optional[MazeData],
+        config: MazeConfig,
+        ui_bar: str = "",
     ) -> None:
         """
         Render a single frame to stdout.
 
+        show_path is read directly from config.show_path.
+
         Args:
-            maze_data:  Parsed maze, or None to show a waiting screen.
-            config:     Current maze configuration.
-            show_path:  Whether to overlay the solution path.
-            ui_bar:     Custom bottom status bar (e.g. vim command input).
-                        Defaults to the standard bar when empty.
+            maze_data: Parsed maze, or None to show a waiting screen.
+            config:    Current maze configuration.
+            ui_bar:    Custom bottom status bar (e.g. vim command input).
+                       Defaults to the standard bar when empty.
         """
         if maze_data is None:
             sys.stdout.write(
                 self.term.clear
                 + self.term.color(3)
-                + "Waiting for maze data\u2026"
+                + "Waiting for maze data..."
                 + self.term.normal
             )
             sys.stdout.flush()
             return
 
-        mode     = self._resolve_mode(config)
-        style    = self._get_style(config, mode)
-        rainbow  = self._get_rainbow_override(config)
+        mode = self._resolve_mode(config)
+        style = self._get_style(config, mode)
+        rainbow = self._get_rainbow_override(config)
 
-        matrix   = build_cell_matrix(maze_data, show_path)
+        matrix = build_cell_matrix(maze_data, config.show_path)
         rendered = render_matrix(matrix, style, self.term, rainbow)
 
         maze_rows = len(matrix)

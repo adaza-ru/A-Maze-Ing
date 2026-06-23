@@ -1,6 +1,6 @@
 import os
 from dataclasses import dataclass, field
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 
 # -- Valid keys ---------------------------------------------------------------
@@ -10,7 +10,7 @@ MANDATORY_KEYS: frozenset[str] = frozenset({
 })
 
 OPTIONAL_KEYS: frozenset[str] = frozenset({
-    "seed", "algorithm",
+    "seed",
     "wall_color", "floor_color", "entry_color", "exit_color",
     "path_color", "logo_42_color",
     "display_mode", "rainbow_mode", "show_path",
@@ -19,26 +19,30 @@ OPTIONAL_KEYS: frozenset[str] = frozenset({
 VALID_KEYS: frozenset[str] = MANDATORY_KEYS | OPTIONAL_KEYS
 
 # -- Validation constants -----------------------------------------------------
+#
+# BOOL_KEYS, COLOR_KEYS, VALID_DISPLAY_MODES and VALID_COLOR_NAMES are
+# public (no leading underscore) because cli.py imports them to validate
+# and randomize values without duplicating these rules.
 
 _BOOL_VALUES: frozenset[str] = frozenset({
     "true", "false", "yes", "no", "1", "0", "on", "off",
 })
 
-_VALID_COLOR_NAMES: frozenset[str] = frozenset({
+VALID_COLOR_NAMES: frozenset[str] = frozenset({
     "black", "red", "green", "yellow", "blue", "magenta",
     "cyan", "white", "grey", "bright_red", "bright_green",
     "bright_yellow", "bright_blue", "bright_magenta",
     "bright_cyan", "bright_white", "random",
 })
 
-_VALID_DISPLAY_MODES: frozenset[str] = frozenset({"block", "ascii", "cursed"})
+VALID_DISPLAY_MODES: frozenset[str] = frozenset({"block", "ascii", "cursed"})
 
-_COLOR_KEYS: frozenset[str] = frozenset({
+COLOR_KEYS: frozenset[str] = frozenset({
     "wall_color", "floor_color", "entry_color",
     "exit_color", "path_color", "logo_42_color",
 })
 
-_BOOL_KEYS: frozenset[str] = frozenset({"perfect", "rainbow_mode", "show_path"})
+BOOL_KEYS: frozenset[str] = frozenset({"perfect", "rainbow_mode", "show_path"})
 
 
 # -- MazeConfig ---------------------------------------------------------------
@@ -59,7 +63,6 @@ class MazeConfig(BaseModel):
     perfect: bool = Field(default=True)
 
     seed: int = Field(default=42)
-    algorithm: str = Field(default="dfs")
 
     wall_color: str | int = Field(default="magenta")
     floor_color: str | int = Field(default="black")
@@ -71,6 +74,18 @@ class MazeConfig(BaseModel):
 
     rainbow_mode: bool = Field(default=False)
     show_path: bool = Field(default=False)
+
+    @field_validator("display_mode")
+    @classmethod
+    def _normalize_display_mode(cls, v: str) -> str:
+        """
+        Normalize display_mode to lowercase.
+
+        Ensures config.display_mode == "cursed" comparisons (here and
+        in audio_manager.py) stay consistent with the renderer's
+        .lower() checks, regardless of the casing used in config.txt.
+        """
+        return v.lower()
 
 
 # -- ConfigResult -------------------------------------------------------------
@@ -96,7 +111,7 @@ class ConfigResult:
 def _is_valid_color(value: str) -> bool:
     """Return True if value is a known color name or an int in 0-255."""
     clean = value.strip().lower()
-    if clean in _VALID_COLOR_NAMES:
+    if clean in VALID_COLOR_NAMES:
         return True
     try:
         return 0 <= int(clean) <= 255
@@ -256,7 +271,7 @@ def validate_config_file(filepath: str) -> list[str]:
             errors.append(f"'seed' must be an integer, got '{val}'")
 
     # bool fields
-    for key in sorted(_BOOL_KEYS):
+    for key in sorted(BOOL_KEYS):
         val = parsed.get(key, "")
         if val and val.lower() not in _BOOL_VALUES:
             errors.append(
@@ -265,7 +280,7 @@ def validate_config_file(filepath: str) -> list[str]:
             )
 
     # color fields
-    for key in sorted(_COLOR_KEYS):
+    for key in sorted(COLOR_KEYS):
         val = parsed.get(key, "")
         if val and not _is_valid_color(val):
             errors.append(
@@ -275,10 +290,10 @@ def validate_config_file(filepath: str) -> list[str]:
 
     # display_mode
     val = parsed.get("display_mode", "")
-    if val and val.lower() not in _VALID_DISPLAY_MODES:
+    if val and val.lower() not in VALID_DISPLAY_MODES:
         errors.append(
             f"'display_mode' must be one of "
-            f"{sorted(_VALID_DISPLAY_MODES)}, got '{val}'"
+            f"{sorted(VALID_DISPLAY_MODES)}, got '{val}'"
         )
 
     # Cross-field: coordinates in bounds and not equal
@@ -326,17 +341,17 @@ def load_config(filepath: str) -> ConfigResult:
     try:
         raw = parse_flat_config(filepath)
         config = MazeConfig(**raw)
-        
+
         if config.display_mode == "cursed":
             config.rainbow_mode = False
-            
+
         return ConfigResult(config=config, mtime=mtime, errors=[])
     except (ValueError, ValidationError) as e:
         return ConfigResult(config=None, mtime=mtime, errors=[str(e)])
     except UnicodeDecodeError:
         # En caso de que validate_config asuma un encoding distinto
         return ConfigResult(
-            config=None, 
-            mtime=mtime, 
+            config=None,
+            mtime=mtime,
             errors=[f"Invalid encoding in {filepath}. Please save as UTF-8."]
         )

@@ -79,15 +79,31 @@ def amazeing_engine() -> Callable[[], None]:
     ctx = EngineContext()
     renderer = AtomicRenderer()
     term = renderer.term
-    
     audio = AudioManager()
-    cli = CommandLineInterface()
+    
+    # NUEVO: Inyectamos el control de cerrado desde la CLI
+    def trigger_exit() -> None:
+        """Signal the CLI 'exit' command to stop the engine."""
+        ctx.current_state = state_exit
 
-    def handle_input():
-        """Captura inputs no bloqueantes de teclado"""
-        key = term.inkey(timeout=0)  # No bloqueante
-        if key:
-            cli.process_key(key)
+    def trigger_regenerate() -> None:
+        """Signal the CLI 'regenerate' command to reload config and maze."""
+        ctx.current_state = state_boot
+
+    cli = CommandLineInterface(
+        config_path=CONFIG_FILE,
+        on_exit=trigger_exit,
+        on_regenerate=trigger_regenerate,
+    )
+
+    def handle_input() -> None:
+        """Capture non-blocking keyboard input and forward it to the CLI.
+
+        Called every frame, even when no key was pressed, so the CLI's
+        status-message timer ticks down at a steady rate.
+        """
+        key = term.inkey(timeout=0)
+        cli.process_key(key)
 
     # -- States ---------------------------------------------------------------
 
@@ -125,7 +141,7 @@ def amazeing_engine() -> Callable[[], None]:
             audio.update_audio_state(ctx.config.display_mode, ctx.config.rainbow_mode)
             
             # Controlar la UI Inferior y renderizar
-            custom_ui = cli.get_ui_bar("")
+            custom_ui = cli.get_ui_bar()
             renderer.render_frame(ctx.maze_data, ctx.config, ui_bar=custom_ui)
             time.sleep(1.0 / _FPS)
         else:
@@ -136,13 +152,13 @@ def amazeing_engine() -> Callable[[], None]:
         handle_input()
         audio.stop() # Parar música en modo de error
 
-        custom_ui = cli.get_ui_bar("") 
-        
+        custom_ui = cli.get_ui_bar()
+
         header = f"Errors in {CONFIG_FILE}:"
         lines = [header] + [f"  {e}" for e in ctx.config_errors]
-        
+
         if custom_ui:
-            lines.append(custom_ui)
+            lines.append(custom_ui.lstrip("\n"))
             
         sys.stdout.write(term.clear + term.color(1) + "\n".join(lines) + term.normal)
         sys.stdout.flush()

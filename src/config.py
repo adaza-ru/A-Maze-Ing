@@ -1,4 +1,4 @@
-import os
+﻿import os
 from dataclasses import dataclass, field
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
@@ -62,7 +62,7 @@ class MazeConfig(BaseModel):
     output_file: str = Field(default="maze.txt")
     perfect: bool = Field(default=True)
 
-    seed: int = Field(default=42)
+    seed: int | None = Field(default=None)
 
     wall_color: str | int = Field(default="magenta")
     floor_color: str | int = Field(default="black")
@@ -184,7 +184,7 @@ def validate_config_file(filepath: str) -> list[str]:
     errors: list[str] = []
 
     try:
-        # Forzar utf-8 para que falle explícitamente si se guarda en UTF-16
+        # Forzar utf-8 para que falle explÃ­citamente si se guarda en UTF-16
         with open(filepath, 'r', encoding='utf-8') as f:
             raw_lines = f.readlines()
     except FileNotFoundError:
@@ -203,7 +203,7 @@ def validate_config_file(filepath: str) -> list[str]:
             continue
 
         if '=' not in stripped:
-            errors.append(f"Line {i}: missing '=' — '{stripped}'")
+            errors.append(f"Line {i}: missing '=' â€” '{stripped}'")
             continue
 
         key_raw, value = stripped.split('=', 1)
@@ -355,3 +355,4 @@ def load_config(filepath: str) -> ConfigResult:
             mtime=mtime,
             errors=[f"Invalid encoding in {filepath}. Please save as UTF-8."]
         )
+

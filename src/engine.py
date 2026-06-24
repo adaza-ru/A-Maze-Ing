@@ -14,6 +14,7 @@ cleanly - even on Ctrl-C or unexpected exceptions.
 import os
 import sys
 import time
+import random
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
@@ -21,6 +22,7 @@ from .audio_manager import AudioManager
 from .cli import CommandLineInterface
 from .config import ConfigResult, MazeConfig, load_config
 from .renderer import AtomicRenderer, MazeData, parse_output_file
+from .generator.generator import MazeGenerator
 
 CONFIG_FILE = "config.txt"
 _FPS = 30
@@ -40,6 +42,7 @@ class EngineContext:
         current_state: Pointer to the active state function.
         config_errors: Error messages from the last failed config load.
         vim_buffer:    Accumulated keystrokes for the vim command line.
+        generator_msg: Message from auto-generation (e.g. warnings).
     """
 
     config: Optional[MazeConfig] = None
@@ -49,6 +52,19 @@ class EngineContext:
     current_state: Optional[Callable[[], None]] = None
     config_errors: list[str] = field(default_factory=list)
     vim_buffer: str = ""
+    generator_msg: str = ""  # ¡Atributo nuevo!
+
+
+def _maze_signature(config: MazeConfig) -> tuple[object, ...]:
+    """Fields that change the maze generation result."""
+    return (
+        config.width,
+        config.height,
+        config.entry,
+        config.exit,
+        config.perfect,
+        config.seed,
+    )
 
 
 def _apply_config_result(ctx: EngineContext, result: ConfigResult) -> bool:
@@ -113,35 +129,103 @@ def amazeing_engine() -> Callable[[], None]:
         ctx.current_state = state_generating if ok else state_error
 
     def state_generating() -> None:
-        """Parse the maze output file; transition to idle."""
-        output_file = ctx.config.output_file if ctx.config else "maze.txt"
-        ctx.maze_data = parse_output_file(output_file)
-        ctx.current_state = state_idle
+        """Generates the maze and saves it to the root dir, then transitions to idle."""
+        if not ctx.config:
+            ctx.current_state = state_error
+            return
+            
+        # Detectar la carpeta raíz (donde están config.txt y el src)
+        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        output_file_name = ctx.config.output_file or "maze.txt"
+        abs_output_file = os.path.join(project_root, output_file_name)
+        
+        ctx.generator_msg = "" 
+
+        try:
+            entry_x, entry_y = map(int, ctx.config.entry.split(","))
+            exit_x, exit_y = map(int, ctx.config.exit.split(","))
+            
+            effective_seed = (
+                ctx.config.seed
+                if ctx.config.seed is not None
+                else random.randint(0, 2**32 - 1)
+            )
+
+            mg = MazeGenerator(
+                width=ctx.config.width,
+                height=ctx.config.height,
+                entry=(entry_x, entry_y),
+                exit_point=(exit_x, exit_y),
+                output_file=abs_output_file,
+                perfect=ctx.config.perfect,
+                seed=effective_seed
+            )
+            
+            skip_msg = mg.generator()
+            if skip_msg:
+                ctx.generator_msg = skip_msg  # Guardamos la advertencia del 42
+            
+            ctx.maze_data = parse_output_file(abs_output_file)
+            ctx.maze_signature = _maze_signature(ctx.config)
+            ctx.current_state = state_idle
+            
+        except ValueError:
+            ctx.config_errors = ["Format errors in config.txt points (expected 'x,y')"]
+            ctx.current_state = state_error
+        except MazeGenerator.MazeError as e:
+            # Ahora llamamos a la excepción anidada del generador
+            ctx.config_errors = [f"Maze Generation failed: {e}"]
+            ctx.current_state = state_error
+        except Exception as e:
+            ctx.config_errors = [f"Unexpected Generation error: {e}"]
+            ctx.current_state = state_error
 
     def state_idle() -> None:
         """Main display loop: hot-reload config, then render one frame."""
         handle_input()
         
+        # Si la CLI ha forzado salir o regenerar, abortamos el idle actual:
+        if ctx.current_state != state_idle:
+            return
+
         try:
             mtime = os.path.getmtime(CONFIG_FILE)
             if mtime > ctx.last_mtime:
+                previous_signature = (
+                    _maze_signature(ctx.config) if ctx.config else None
+                )
+
                 ok = _apply_config_result(ctx, load_config(CONFIG_FILE))
                 if not ok:
                     ctx.current_state = state_error
-                    return
+                else:
+                    new_signature = _maze_signature(ctx.config)
+                    if new_signature != previous_signature:
+                        ctx.current_state = state_generating
+                    else:
+                        ctx.current_state = state_idle
+                return
+
         except OSError:
-            # Si el archivo desaparece, cargamos la configuración de nuevo
-            # (que forzará un error de "File not found" a través de validate_config_file)
             _apply_config_result(ctx, load_config(CONFIG_FILE))
             ctx.current_state = state_error
             return
 
         if ctx.config:
             # Controlar el Audio
-            audio.update_audio_state(ctx.config.display_mode, ctx.config.rainbow_mode)
-            
+            audio.update_audio_state(
+                ctx.config.display_mode, 
+                ctx.config.rainbow_mode
+            )
+
             # Controlar la UI Inferior y renderizar
             custom_ui = cli.get_ui_bar()
+
+            if ctx.generator_msg:
+                color_war = term.color(3)
+                warning_ui = f"\n{color_war}[Warning] {ctx.generator_msg}{term.normal}"
+                custom_ui = warning_ui + custom_ui
+
             renderer.render_frame(ctx.maze_data, ctx.config, ui_bar=custom_ui)
             time.sleep(1.0 / _FPS)
         else:

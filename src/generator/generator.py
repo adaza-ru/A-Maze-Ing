@@ -6,7 +6,7 @@ mazes. It includes features to enforce the "42" watermark, perfect/imperfect
 generation modes, strict input validation using Pydantic, and a BFS-based
 shortest-path solver.
 
-Quickstart::
+Quickstart:
 
     from generator import MazeGenerator
 
@@ -35,168 +35,8 @@ from typing import Optional, Protocol, runtime_checkable
 
 from pydantic import BaseModel, Field, model_validator
 
-__all__: list[str] = [
-    "Direction",
-    "MazeConfig",
-    "MazeConfigError",
-    "MazeConfigProtocol",
-    "MazeGenerator",
-    "MazeIOError",
-]
-
+__all__: list[str] = ["MazeGenerator"]
 __version__: str = "1.0.0"
-
-
-# ---------------------------------------------------------------------------
-# Exceptions
-# ---------------------------------------------------------------------------
-
-
-class MazeError(Exception):
-    """Base exception for maze-related errors."""
-
-
-class MazeConfigError(MazeError):
-    """Exception raised for invalid maze configurations."""
-
-
-class MazeSolveError(MazeError):
-    """Exception raised when no path exists between entry and exit."""
-
-
-class MazeIOError(MazeError):
-    """Exception raised for file-related errors."""
-
-
-# ---------------------------------------------------------------------------
-# Protocol
-# ---------------------------------------------------------------------------
-
-
-@runtime_checkable
-class MazeConfigProtocol(Protocol):
-    """Protocol defining the required configuration for the MazeGenerator.
-
-    Any class exposing these attributes satisfies the protocol and can
-    serve as a configuration source.
-    """
-
-    width: int
-    height: int
-    entry: tuple[int, int]
-    exit_point: tuple[int, int]
-    output_file: str
-    perfect: bool
-    seed: Optional[int]
-
-
-# ---------------------------------------------------------------------------
-# Pydantic configuration model
-# ---------------------------------------------------------------------------
-
-
-class MazeConfig(BaseModel):
-    """Pydantic v2 model for validating the maze configuration.
-
-    Attributes:
-        width: Number of columns (>= 2).
-        height: Number of rows (>= 2).
-        entry: Entry cell (x, y), must be inside the maze.
-        exit_point: Exit cell (x, y), must be inside the maze.
-        output_file: Path to write the hex-encoded output.
-        perfect: Generate a perfect maze when True.
-        seed: Optional integer seed for the RNG.
-    """
-
-    width: int = Field(..., ge=2)
-    height: int = Field(..., ge=2)
-    entry: tuple[int, int]
-    exit_point: tuple[int, int]
-    output_file: str = Field(..., min_length=1)
-    perfect: bool = True
-    seed: Optional[int] = None
-
-    @model_validator(mode="after")
-    def _validate_points(self) -> MazeConfig:
-        """Validate entry and exit against maze bounds and uniqueness.
-
-        Returns:
-            The validated model instance.
-
-        Raises:
-            ValueError: If entry or exit is out of bounds, or they are
-                the same cell.
-        """
-        ex, ey = self.entry
-        if not (0 <= ex < self.width and 0 <= ey < self.height):
-            raise ValueError(
-                f"Entry {self.entry} out of bounds "
-                f"({self.width}x{self.height})."
-            )
-        zx, zy = self.exit_point
-        if not (0 <= zx < self.width and 0 <= zy < self.height):
-            raise ValueError(
-                f"Exit {self.exit_point} out of bounds "
-                f"({self.width}x{self.height})."
-            )
-        if self.entry == self.exit_point:
-            raise ValueError("Entry and exit cannot be the same cell.")
-        return self
-
-
-# ---------------------------------------------------------------------------
-# Direction enumeration
-# ---------------------------------------------------------------------------
-
-
-class Direction(Enum):
-    """Cardinal directions with grid deltas and 4-bit wall encoding.
-
-    Each member stores ``(dx, dy, wall_bit, opposite_wall_bit, char)``.
-
-    Bit assignment:
-        bit 0 (value 1) — North wall
-        bit 1 (value 2) — East  wall
-        bit 2 (value 4) — South wall
-        bit 3 (value 8) — West  wall
-
-    A wall bit being **set** means the wall is **closed**.
-    """
-
-    NORTH = (0, -1, 1, 4, "N")
-    EAST = (1, 0, 2, 8, "E")
-    SOUTH = (0, 1, 4, 1, "S")
-    WEST = (-1, 0, 8, 2, "W")
-
-    @property
-    def dx(self) -> int:
-        """Horizontal cell offset."""
-        return int(self.value[0])
-
-    @property
-    def dy(self) -> int:
-        """Vertical cell offset."""
-        return int(self.value[1])
-
-    @property
-    def bit(self) -> int:
-        """Wall bit for the current cell in this direction."""
-        return int(self.value[2])
-
-    @property
-    def opp(self) -> int:
-        """Wall bit for the neighbour cell facing back."""
-        return int(self.value[3])
-
-    @property
-    def char(self) -> str:
-        """Single-character direction label (N/E/S/W)."""
-        return str(self.value[4])
-
-
-# ---------------------------------------------------------------------------
-# Maze generator
-# ---------------------------------------------------------------------------
 
 
 class MazeGenerator:
@@ -229,6 +69,124 @@ class MazeGenerator:
         path = mg.solve()
         mg.write_to_file(path)
     """
+    class MazeError(Exception):
+        """Base exception for maze-related errors."""
+
+    class MazeConfigError(MazeError):
+        """Exception raised for invalid maze configurations."""
+
+    class MazeSolveError(MazeError):
+        """Exception raised when no path exists between entry and exit."""
+
+    class MazeIOError(MazeError):
+        """Exception raised for file-related errors."""
+
+    @runtime_checkable
+    class MazeConfigProtocol(Protocol):
+        """Protocol defining the required configuration for the MazeGenerator.
+        Any class exposing these attributes satisfies the protocol and can
+        serve as a configuration source.
+        """
+
+        width: int
+        height: int
+        entry: tuple[int, int]
+        exit_point: tuple[int, int]
+        output_file: str
+        perfect: bool
+        seed: Optional[int]
+
+    class MazeConfig(BaseModel):
+        """Pydantic v2 model for validating the maze configuration.
+
+        Attributes:
+            width: Number of columns (>= 2).
+            height: Number of rows (>= 2).
+            entry: Entry cell (x, y), must be inside the maze.
+            exit_point: Exit cell (x, y), must be inside the maze.
+            output_file: Path to write the hex-encoded output.
+            perfect: Generate a perfect maze when True.
+            seed: Optional integer seed for the RNG.
+        """
+
+        width: int = Field(..., ge=2)
+        height: int = Field(..., ge=2)
+        entry: tuple[int, int]
+        exit_point: tuple[int, int]
+        output_file: str = Field(..., min_length=1)
+        perfect: bool = True
+        seed: Optional[int] = None
+
+        @model_validator(mode="after")
+        def _validate_points(self) -> "MazeGenerator.MazeConfig":
+            """Validate entry and exit against maze bounds and uniqueness.
+
+            Returns:
+            The validated model instance.
+
+            Raises:
+                ValueError: If entry or exit is out of bounds, or they are
+                    the same cell.
+            """
+            ex, ey = self.entry
+            if not (0 <= ex < self.width and 0 <= ey < self.height):
+                raise ValueError(
+                    f"Entry {self.entry} out of bounds "
+                    f"({self.width}x{self.height})."
+                )
+            zx, zy = self.exit_point
+            if not (0 <= zx < self.width and 0 <= zy < self.height):
+                raise ValueError(
+                    f"Exit {self.exit_point} out of bounds "
+                    f"({self.width}x{self.height})."
+                )
+            if self.entry == self.exit_point:
+                raise ValueError("Entry and exit cannot be the same cell.")
+            return self
+
+    class Direction(Enum):
+        """Cardinal directions with grid deltas and 4-bit wall encoding.
+
+        Each member stores ``(dx, dy, wall_bit, opposite_wall_bit, char)``.
+
+        Bit assignment:
+            bit 0 (value 1) — North wall
+            bit 1 (value 2) — East  wall
+            bit 2 (value 4) — South wall
+            bit 3 (value 8) — West  wall
+
+        A wall bit being **set** means the wall is **closed**.
+        """
+
+        NORTH = (0, -1, 1, 4, "N")
+        EAST = (1, 0, 2, 8, "E")
+        SOUTH = (0, 1, 4, 1, "S")
+        WEST = (-1, 0, 8, 2, "W")
+
+        @property
+        def dx(self) -> int:
+            """Horizontal cell offset."""
+            return int(self.value[0])
+
+        @property
+        def dy(self) -> int:
+            """Vertical cell offset."""
+            return int(self.value[1])
+
+        @property
+        def bit(self) -> int:
+            """Wall bit for the current cell in this direction."""
+            return int(self.value[2])
+
+        @property
+        def opp(self) -> int:
+            """Wall bit for the neighbour cell facing back."""
+            return int(self.value[3])
+
+        @property
+        def char(self) -> str:
+            """Single-character direction label (N/E/S/W)."""
+            return str(self.value[4])
 
     def __init__(
         self,
@@ -241,7 +199,7 @@ class MazeGenerator:
         seed: Optional[int] = None,
     ) -> None:
         try:
-            self.config: MazeConfig = MazeConfig(
+            self.config: "MazeGenerator.MazeConfig" = self.MazeConfig(
                 width=width,
                 height=height,
                 entry=entry,
@@ -251,7 +209,7 @@ class MazeGenerator:
                 seed=seed,
             )
         except ValueError as exc:
-            raise MazeConfigError(str(exc)) from exc
+            raise self.MazeConfigError(str(exc)) from exc
 
         self.grid: list[list[int]] = [
             [15] * self.config.width
@@ -359,9 +317,9 @@ class MazeGenerator:
 
         while stack:
             cx, cy = stack[-1]
-            neighbors: list[tuple[int, int, Direction]] = []
+            neighbors: list[tuple[int, int, "MazeGenerator.Direction"]] = []
 
-            for d in Direction:
+            for d in MazeGenerator.Direction:
                 nx, ny = cx + d.dx, cy + d.dy
                 if (
                     0 <= nx < width
@@ -409,12 +367,12 @@ class MazeGenerator:
 
         for row in range(3):          # east walls: columns 0 and 1
             for col in range(2):
-                if self.grid[by + row][bx + col] & Direction.EAST.bit:
+                if self.grid[by + row][bx + col] & self.Direction.EAST.bit:
                     return False
 
         for row in range(2):          # south walls: rows 0 and 1
             for col in range(3):
-                if self.grid[by + row][bx + col] & Direction.SOUTH.bit:
+                if self.grid[by + row][bx + col] & self.Direction.SOUTH.bit:
                     return False
 
         return True
@@ -425,7 +383,7 @@ class MazeGenerator:
         cy: int,
         nx: int,
         ny: int,
-        d: Direction,
+        d: "MazeGenerator.Direction",
     ) -> bool:
         """Check if removing a wall would create a 3x3 fully-open block.
 
@@ -480,13 +438,13 @@ class MazeGenerator:
         Args:
             reserved: Cells whose walls must not be modified.
         """
-        candidates: list[tuple[int, int, int, int, Direction]] = []
+        candidates: list[tuple[int, int, int, int, "MazeGenerator.Direction"]] = []
 
         for y in range(self.config.height):
             for x in range(self.config.width):
                 if (x, y) in reserved:
                     continue
-                for d in (Direction.EAST, Direction.SOUTH):
+                for d in (self.Direction.EAST, self.Direction.SOUTH):
                     wnx: int = x + d.dx
                     wny: int = y + d.dy
                     if (
@@ -564,6 +522,9 @@ class MazeGenerator:
         if not self.config.perfect:
             self._break_imperfections(effective_reserves)
 
+        shortest_path = self.solve()
+        self.write_to_file(shortest_path)
+
         return skip_msg
 
     def solve(self) -> str:
@@ -602,7 +563,7 @@ class MazeGenerator:
                 path.reverse()
                 return "".join(path)
 
-            for d in Direction:
+            for d in self.Direction:
                 if self.grid[cy][cx] & d.bit:
                     continue  # wall is closed
                 pnx: int = cx + d.dx
@@ -616,7 +577,7 @@ class MazeGenerator:
                     came_from[(pnx, pny)] = ((cx, cy), d.char)
                     queue.append((pnx, pny))
 
-        raise MazeSolveError(
+        raise self.MazeSolveError(
             f"No path found from {self.config.entry} "
             f"to {self.config.exit_point}."
         )
@@ -678,12 +639,12 @@ class MazeGenerator:
             with open(out, "w", encoding="utf-8") as fh:
                 fh.write(content)
         except IsADirectoryError as exc:
-            raise MazeIOError(
+            raise self.MazeIOError(
                 f"Output path '{out}' is a directory."
             ) from exc
         except PermissionError as exc:
-            raise MazeIOError(
+            raise self.MazeIOError(
                 f"Permission denied writing to '{out}'."
             ) from exc
         except OSError as exc:
-            raise MazeIOError(f"OS error writing to '{out}': {exc}") from exc
+            raise self.MazeIOError(f"OS error writing to '{out}': {exc}") from exc

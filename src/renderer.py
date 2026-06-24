@@ -336,20 +336,20 @@ def build_frame(
     """
     display_w = maze_cols * 2
 
+    default_bar = (
+        f"\n| Mode: {str(mode).upper()}"
+        f" | [:] Vim"
+        f" | [ESC] Exit"
+    )
+
     if maze_rows > term.height or display_w > term.width:
         return (
             term.clear
             + term.color(3)
             + f"Terminal too small (need {display_w}x{maze_rows},"
             + f" have {term.width}x{term.height})"
-            + term.normal
+            + f"\n{ui_bar or default_bar}"
         )
-
-    default_bar = (
-        f"\n| Mode: {str(mode).upper()}"
-        f" | [:] Vim"
-        f" | [ESC] Exit"
-    )
 
     return term.clear + "\n".join(rendered_lines) + (ui_bar or default_bar)
 

@@ -1,6 +1,0 @@
-No funciona el fallback de resolve_color cuando pongo un valor no valido para un color como 'afpjfopajf'
-Mostrar animación de generación
-Pulir manejo de errores
-Añadir canciones, Ravero para rainbow mode y rickroll para cursed display
-Mostrar el camino más corto
-Línea de comandos no bloqueante (Libreta)

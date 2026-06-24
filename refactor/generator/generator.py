@@ -70,8 +70,8 @@ class MazeGenerator:
 
         model_config = ConfigDict(populate_by_name=True)
 
-        width: int = Field(..., ge=2, le=1000)
-        height: int = Field(..., ge=2, le=1000)
+        width: int = Field(..., ge=3, le=1000)
+        height: int = Field(..., ge=3, le=1000)
         entry: tuple[int, int] = Field(...)
         exit_point: tuple[int, int] = Field(..., validation_alias="exit")
         output_file: str = Field(..., min_length=1, max_length=255)

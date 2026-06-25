@@ -18,7 +18,6 @@ silent no-op rather than crashing the whole engine.
 import contextlib
 import os
 from typing import Iterator, Optional
-
 from just_playback import Playback
 
 
@@ -72,13 +71,7 @@ class AudioManager:
         display_mode: str,
         rainbow_mode: bool,
     ) -> None:
-        """
-        Sync playback with the current display/rainbow mode.
-
-        Args:
-            display_mode: Current MazeConfig.display_mode (lowercase).
-            rainbow_mode: Current MazeConfig.rainbow_mode.
-        """
+        """Sync playback with the current display/rainbow mode."""
         if self._player is None:
             return
 

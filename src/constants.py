@@ -1,14 +1,8 @@
 """
 constants.py - Enums, display tables, color palette, and helpers.
-
-Terminal control is handled entirely by blessed (Terminal object lives
-in AtomicRenderer). This module contains only data that is independent
-of any specific terminal library.
 """
 
-import random
 from enum import Enum
-from typing import Dict
 
 
 class DisplayMode(str, Enum):
@@ -40,7 +34,7 @@ class CellType(str, Enum):
     PATH = "path"
 
 
-DISPLAY_CHARACTERS: Dict[DisplayMode, Dict[CellType, str]] = {
+DISPLAY_CHARACTERS: dict[DisplayMode, dict[CellType, str]] = {
     DisplayMode.BLOCK: {
         CellType.WALL: "  ",
         CellType.FLOOR: "  ",
@@ -67,7 +61,7 @@ DISPLAY_CHARACTERS: Dict[DisplayMode, Dict[CellType, str]] = {
     },
 }
 
-COLOR_PALETTE: Dict[str, int] = {
+COLOR_PALETTE: dict[str, int] = {
     "black": 0,
     "red": 1,
     "green": 2,
@@ -87,31 +81,56 @@ COLOR_PALETTE: Dict[str, int] = {
 }
 
 
-def resolve_color_code(color_input: str | int) -> int:
-    """
-    Resolve a color value to an ANSI 256-color index.
+MANDATORY_KEYS: frozenset[str] = frozenset({
+    "width", "height", "entry", "exit", "output_file", "perfect",
+})
 
-    Accepts:
-      - An int  0-255    -> used directly.
-      - A named string   -> looked up in COLOR_PALETTE.
-      - A numeric string -> parsed as int.
-      - "random"         -> random COLOR_PALETTE entry.
 
-    Falls back to blue (4) on any invalid input.
-    """
-    if isinstance(color_input, int):
-        return color_input if 0 <= color_input <= 255 else 4
+OPTIONAL_KEYS: frozenset[str] = frozenset({
+    "seed",
+    "wall_color", "floor_color", "entry_color", "exit_color",
+    "path_color", "logo_42_color",
+    "display_mode", "rainbow_mode", "show_path",
+})
 
-    clean = str(color_input).strip().lower()
 
-    if clean == "random":
-        return random.choice(list(COLOR_PALETTE.values()))
+VALID_KEYS: frozenset[str] = MANDATORY_KEYS | OPTIONAL_KEYS
 
-    if clean in COLOR_PALETTE:
-        return COLOR_PALETTE[clean]
 
-    try:
-        num = int(clean)
-        return num if 0 <= num <= 255 else 4
-    except ValueError:
-        return 4
+_BOOL_VALUES: frozenset[str] = frozenset({
+    "true", "false", "yes", "no", "1", "0", "on", "off",
+})
+
+
+VALID_COLOR_NAMES: frozenset[str] = frozenset({
+    "black", "red", "green", "yellow", "blue", "magenta",
+    "cyan", "white", "grey", "bright_red", "bright_green",
+    "bright_yellow", "bright_blue", "bright_magenta",
+    "bright_cyan", "bright_white", "random",
+})
+
+
+VALID_DISPLAY_MODES: frozenset[str] = frozenset({"block", "ascii", "cursed"})
+
+
+COLOR_KEYS: frozenset[str] = frozenset({
+    "wall_color", "floor_color", "entry_color",
+    "exit_color", "path_color", "logo_42_color",
+})
+
+
+BOOL_KEYS: frozenset[str] = frozenset({"perfect", "rainbow_mode", "show_path"})
+
+
+_DIR_DELTA: dict[str, tuple[int, int]] = {
+    'N': (-1, 0),
+    'E': (0, +1),
+    'S': (+1, 0),
+    'W': (0, -1),
+}
+
+
+CONFIG_FILE = "config.txt"
+_FPS = 30
+_STATUS_MESSAGE_FRAMES = 20
+_RAINBOW_INTERVAL: float = 1.0

@@ -10,7 +10,8 @@ from .constants import (
     VALID_COLOR_NAMES,
     VALID_DISPLAY_MODES,
     COLOR_KEYS,
-    BOOL_KEYS
+    BOOL_KEYS,
+    CONFIG_FILE
 )
 
 
@@ -46,6 +47,14 @@ class MazeConfig(BaseModel):
     def _normalize_display_mode(cls, v: str) -> str:
         """Normalize display_mode to lowercase."""
         return v.lower()
+
+    @field_validator("output_file")
+    @classmethod
+    def _check_output_name(cls, output: str) -> str:
+        """Normalize display_mode to lowercase."""
+        if output == CONFIG_FILE:
+            raise ValueError("The output file can not be the config input.")
+        return output
 
 
 @dataclass

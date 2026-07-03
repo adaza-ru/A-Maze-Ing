@@ -17,17 +17,17 @@ TYPINGS_DIR  = typings
 all: help
 
 help:
-	@echo "======================================================================="
+	@echo "==========================================================================="
 	@echo "                        A-MAZE-ING MAKEFILE                            "
-	@echo "======================================================================="
-	@echo "  make install      - Create .venv (if missing) and install dependencies"
-	@echo "  make run          - Execute the main script ($(MAIN_SCRIPT)) inside .venv"
-	@echo "  make debug        - Run in debug mode with pdb inside .venv"
-	@echo "  make clean        - Remove temporary files, caches, and build artifacts"
-	@echo "  make lint         - Run linters using .venv packages"
-	@echo "  make lint-strict  - Run flake8 and mypy in strict mode"
-	@echo "  make build        - Build the pip package using .venv tools"
-	@echo "======================================================================="
+	@echo "==========================================================================="
+	@echo " make install      - Create .venv (if missing) and install dependencies"
+	@echo " make run          - Execute the main script ($(MAIN_SCRIPT)) inside .venv"
+	@echo " make debug        - Run in debug mode with pdb inside .venv"
+	@echo " make clean        - Remove temporary files, caches, and build artifacts"
+	@echo " make lint         - Run linters using .venv packages"
+	@echo " make lint-strict  - Run flake8 and mypy in strict mode"
+	@echo " make build        - Build the pip package using .venv tools"
+	@echo "============================================================================"
 
 
 $(PIP):
@@ -51,12 +51,15 @@ build: clean
 	$(PYTHON) -m build
 	@echo "Moving wheel to root and cleaning up..."
 	mv dist/mazegen-*.whl .
+	mv dist/mazegen-*.tar.gz .
 	rm -rf dist
-	@echo "Package ready: $$(ls mazegen-*.whl)"
+	@echo "Package ready:"
+	@ls -l mazegen-*.whl mazegen-*.tar.gz
 
-install: $(PIP) build
+install: $(PIP)
 	@echo "Installing dependencies..."
 	$(PIP) install -r requirements.txt
+	$(MAKE) build
 	@echo "Installing generated wheel..."
 	$(PIP) install ./mazegen-*.whl --force-reinstall
 	@echo "Environment ready and linked to the wheel!"

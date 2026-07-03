@@ -155,7 +155,7 @@ class CommandLineInterface:
         elif key_lower == "display_mode":
             return random.choice(list(VALID_DISPLAY_MODES))
         elif key_lower in ("width", "height"):
-            return random.randint(10, 40)
+            return random.randint(5, 24)
         elif key_lower == "seed":
             return random.randint(1, 999999)
         elif key_lower in ("entry", "exit"):
@@ -242,4 +242,4 @@ class CommandLineInterface:
                 self._randomize_key(key_target)
             return
 
-        self._show_status(f"Comando '{cmd}' no reconocido.")
+        self._show_status(f"'{cmd}' is not a valid command")

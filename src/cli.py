@@ -57,6 +57,10 @@ class CommandLineInterface:
                 self.is_active = True
                 self.buffer = ""
                 self.status_message = ""
+            if key.name == "KEY_ESCAPE":
+                self.on_exit()
+            if key == "r":
+                self.on_regenerate()
             return
 
         if key.is_sequence:
@@ -196,7 +200,10 @@ class CommandLineInterface:
         own default bar.
         """
         if self.is_active:
-            return f"\n| COMMAND MODE: {self.buffer}\u2588"
+            return ("\n| COMMAND LIST: set:<key>=<value> | randomize:<key"
+                    + "\"/all\"> |\n| regenerate | default | showpath |"
+                    + " hidepath |\n| For more command info check the "
+                    + f"README |\n| COMMAND: {self.buffer}\u2588")
         if self.status_message:
             return f"\n| {self.status_message}"
         return ""

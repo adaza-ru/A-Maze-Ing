@@ -282,8 +282,7 @@ def build_frame(
 
     default_bar = (
         f"\n| Mode: {str(mode).upper()}"
-        f" | [:] Vim"
-        f" | [ESC] Exit"
+        f" | [:] CLI Interface | [R]: Regenerate | [ESC]: Exit |"
     )
 
     if maze_rows > term.height or display_w > term.width:

@@ -287,7 +287,7 @@ def amazeing_engine() -> Callable[[], None]:
                 renderer.cleanup()
 
         print(
-            "\x1b[35m" + "Thank you for your time!\U0001f499" + term.normal
+            "\x1b[35m" + "Thank you for your time!\U0001f499\n" + term.normal
         )
 
     return run

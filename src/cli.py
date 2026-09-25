@@ -202,7 +202,7 @@ class CommandLineInterface:
         if self.is_active:
             return ("\n| COMMAND LIST: set:<key>=<value> | randomize:<key"
                     + "\"/all\"> |\n| regenerate | default | showpath |"
-                    + " hidepath |\n| For more command info check the "
+                    + " hidepath | exit |\n| For more command info check the "
                     + f"README |\n| COMMAND: {self.buffer}\u2588")
         if self.status_message:
             return f"\n| {self.status_message}"
